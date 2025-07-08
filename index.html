@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>2D Ավտո Խաղ with Speed Controls</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #222;
+      overflow: hidden;
+      touch-action: manipulation;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #startOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 9999;
+    }
+
+    #startBtn {
+      font-size: 24px;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+
+    .game-container {
+      position: relative;
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .road {
+      position: relative;
+      width: 200px;
+      height: 400px;
+      background: #555;
+      overflow: hidden;
+      border: 4px solid #000;
+    }
+
+    .line {
+      position: absolute;
+      width: 10px;
+      height: 40px;
+      background: white;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    @keyframes moveLine {
+      0% { top: -40px; }
+      100% { top: 400px; }
+    }
+
+    .car {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 70px;
+      background: red;
+      border-radius: 5px;
+      border: 2px solid white;
+      z-index: 10;
+      transition: left 0.1s ease;
+    }
+
+    .obstacle {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: blue;
+      border-radius: 5px;
+      border: 2px solid white;
+    }
+
+    .score-display {
+      margin-top: 10px;
+      font-size: 24px;
+      display: flex;
+      justify-content: space-between;
+      width: 200px;
+    }
+
+    .game-over {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      z-index: 100;
+    }
+
+    .restart-btn {
+      margin-top: 15px;
+      padding: 8px 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .controls {
+      margin-top: 10px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .steering-controls, .pedal-controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .control-btn, .pedal {
+      padding: 15px 25px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      user-select: none;
+    }
+
+    .control-btn {
+      background: #333;
+    }
+
+    .gas-pedal {
+      background: #4CAF50;
+    }
+
+    .brake-pedal {
+      background: #f44336;
+    }
+
+    .speedometer {
+      background: #111;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      border: 2px solid #444;
+    }
+
+    .dashboard {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="startOverlay">
+  <h1>Hello</h1>
+  <button id="startBtn">Start game</button>
+</div>
+
+<div class="game-container">
+  <div class="road" id="road">
+    <div class="car" id="car"></div>
+  </div>
+  <div class="game-over" id="gameOver">
+    <h2>Game Over!</h2>
+    <p>Your score: <span id="finalScore">0</span></p>
+    <button class="restart-btn" id="restartBtn">Restart</button>
+  </div>
+  <div class="score-display">
+    <div class="dashboard">
+      <div><span id="score"></span></div>
+      <div class="speedometer" id="speedometer">0</div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="steering-controls">
+      <button class="control-btn" id="leftBtn">←</button>
+      <button class="control-btn" id="rightBtn">→</button>
+    </div>
+    <div class="pedal-controls">
+      <button class="pedal gas-pedal" id="gasPedal">GAS</button>
+      <button class="pedal brake-pedal" id="brakePedal">BRAKE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const road = document.getElementById('road');
+  const car = document.getElementById('car');
+  const scoreDisplay = document.getElementById('score');
+  const finalScoreDisplay = document.getElementById('finalScore');
+  const gameOverScreen = document.getElementById('gameOver');
+  const restartBtn = document.getElementById('restartBtn');
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+  const gasPedal = document.getElementById('gasPedal');
+  const brakePedal = document.getElementById('brakePedal');
+  const speedometer = document.getElementById('speedometer');
+  const startOverlay = document.getElementById('startOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const gameContainer = document.querySelector('.game-container');
+
+  let score = 0, currentSpeed = 2, targetSpeed = 2, maxSpeed = 10, minSpeed = 1;
+  let carPosition = 1, gameRunning = true, obstacles = [], roadLines = [];
+  let animationId, obstacleInterval, gasPressed = false, brakePressed = false;
+  const positions = [30, 100, 170];
+
+  function createRoadLines() {
+    for (let i = 0; i < 10; i++) {
+      const line = document.createElement('div');
+      line.className = 'line';
+      line.style.top = `${-40 + i * 40}px`;
+      line.style.animation = `moveLine ${1 / currentSpeed}s linear infinite`;
+      road.appendChild(line);
+      roadLines.push(line);
+    }
+  }
+
+  function updateSpeedometer() {
+    const speedValue = Math.floor(currentSpeed * 10);
+    speedometer.textContent = speedValue;
+    speedometer.style.color = speedValue > 70 ? '#f44336' : speedValue > 40 ? '#FFC107' : '#4CAF50';
+  }
+
+  function moveCar(direction) {
+    if (!gameRunning) return;
+    carPosition += direction;
+    carPosition = Math.max(0, Math.min(2, carPosition));
+    car.style.left = `${positions[carPosition]}px`;
+  }
+
+  function createObstacle() {
+    if (!gameRunning) return;
+    const obstacle = document.createElement('div');
+    obstacle.className = 'obstacle';
+    const lane = Math.floor(Math.random() * 3);
+    obstacle.style.left = `${positions[lane]}px`;
+    obstacle.style.top = '-40px';
+    road.appendChild(obstacle);
+    obstacles.push({ element: obstacle, lane, top: -40 });
+  }
+
+  function updateSpeed() {
+    if (gasPressed && targetSpeed < maxSpeed) targetSpeed += 0.1;
+    if (brakePressed && targetSpeed > minSpeed) targetSpeed -= 0.2;
+    currentSpeed += (targetSpeed - currentSpeed) * 0.05;
+    roadLines.forEach(line => line.style.animationDuration = `${1 / currentSpeed}s`);
+    updateSpeedometer();
+  }
+
+  function updateGame() {
+    if (!gameRunning) return;
+    updateSpeed();
+    obstacles.forEach((obstacle, index) => {
+      obstacle.top += 2 * currentSpeed;
+      obstacle.element.style.top = `${obstacle.top}px`;
+      if (obstacle.top > 330 && obstacle.top < 340 && obstacle.lane === carPosition) {
+        score += Math.floor(currentSpeed * 2);
+        scoreDisplay.textContent = score;
+      }
+      if (obstacle.top > 400) {
+        road.removeChild(obstacle.element);
+        obstacles.splice(index, 1);
+      }
+      if (obstacle.top + 40 > 330 && obstacle.top < 370 && obstacle.lane === carPosition) endGame();
+    });
+    animationId = requestAnimationFrame(updateGame);
+  }
+
+  function endGame() {
+    gameRunning = false;
+    cancelAnimationFrame(animationId);
+    clearInterval(obstacleInterval);
+    finalScoreDisplay.textContent = score;
+    gameOverScreen.style.display = 'block';
+  }
+
+  function startGame() {
+    score = 0; currentSpeed = 2; targetSpeed = 2; carPosition = 1;
+    gameRunning = true; obstacles = []; roadLines = [];
+    gasPressed = false; brakePressed = false;
+
+    while (road.firstChild) road.removeChild(road.firstChild);
+    car.style.left = `${positions[1]}px`;
+    road.appendChild(car);
+
+    scoreDisplay.textContent = '0';
+    updateSpeedometer();
+    gameOverScreen.style.display = 'none';
+
+    createRoadLines();
+    obstacleInterval = setInterval(createObstacle, 2000 / currentSpeed);
+    updateGame();
+  }
+
+  // Button Events
+  leftBtn.onclick = () => moveCar(-1);
+  rightBtn.onclick = () => moveCar(1);
+  restartBtn.onclick = startGame;
+
+  gasPedal.ontouchstart = gasPedal.onmousedown = () => gasPressed = true;
+  gasPedal.ontouchend = gasPedal.onmouseup = gasPedal.onmouseleave = () => gasPressed = false;
+
+  brakePedal.ontouchstart = brakePedal.onmousedown = () => brakePressed = true;
+  brakePedal.ontouchend = brakePedal.onmouseup = brakePedal.onmouseleave = () => brakePressed = false;
+
+  document.onkeydown = e => {
+    if (e.key === 'ArrowLeft') moveCar(-1);
+    if (e.key === 'ArrowRight') moveCar(1);
+    if (e.key === 'ArrowUp') gasPressed = true;
+    if (e.key === 'ArrowDown') brakePressed = true;
+  };
+
+  document.onkeyup = e => {
+    if (e.key === 'ArrowUp') gasPressed = false;
+    if (e.key === 'ArrowDown') brakePressed = false;
+  };
+
+  // Fullscreen logic
+  startBtn.addEventListener('click', () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    }
+    startOverlay.style.display = 'none';
+    gameContainer.style.display = 'flex';
+    startGame();
+  });
+</script>
+
+</body>
+</html>
